@@ -9,7 +9,7 @@
 
 #include <unistd.h>
 
-#include "overrun.h"
+#include "overrun.hh"
 
 #define FALSE 0
 #define TRUE  1

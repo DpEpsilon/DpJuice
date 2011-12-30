@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "overrun.h"
+#include "overrun.hh"
 
 struct unit {
    int ownerID;
