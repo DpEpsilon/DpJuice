@@ -1,9 +1,6 @@
 #ifndef __PHAIS_H
 #define __PHAIS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include <math.h>
    /////////////////////////////////////////////////////////////////////
    // The following are constants for possible terrain components
@@ -116,9 +113,5 @@ extern "C" {
    int getLevel (int cost);
 
    /////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
