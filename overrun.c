@@ -32,7 +32,6 @@ int playernum, boardsize, playerid;
 
 char buffer[BUFFER_SIZE];
 char out_buffer[BUFFER_SIZE];
-
 char tmp[TMP_SIZE];
 
 int name_set = FALSE;
@@ -52,38 +51,41 @@ int main(int argc, char * argv[])
 {
     strcpy(ip_address, "127.0.0.1");
     if (cmd_line_args(argc, argv) == 1) return 1;
-reconnect:
-    name_set = FALSE;
-    if (connect_self() == 1) return 1;
-
-    for (;;)
+    
+    for (;;) // Reconnect loop
     {
-	int prc_ret;
-	memset((void *)buffer, 0, sizeof(char)*BUFFER_SIZE);
-	packet_size = recv(soc, (void *)buffer, BUFFER_SIZE, 0);
-	if (packet_size == -1)
+	name_set = FALSE;
+	if (connect_self() == 1) return 1;
+	
+	for (;;) // Packet processing loop
 	{
-	    printf("error: problem in receiving packet\n");
-	    printf("Reconnecting...\n");
-	    goto reconnect;
-	}
-	if (packet_size == 0)
-	{
-	    printf("error: connection closed by host\n");
-	    printf("Reconnecting...\n");
-	    goto reconnect;
-	}
-	printf("%s\n",buffer);
-	prc_ret = process_packet();
-	if (prc_ret == 1)
-	{
-	    printf("Exiting...\n");
-	    return 1;
-	}
-	if (prc_ret == 2)
-	{
-	    printf("Reconnecting...\n");
-	    goto reconnect;
+	    int prc_ret;
+	    memset((void *)buffer, 0, sizeof(char)*BUFFER_SIZE);
+	    packet_size = recv(soc, (void *)buffer, BUFFER_SIZE, 0);
+	    if (packet_size == -1)
+	    {
+		printf("error: problem in receiving packet\n");
+		printf("Reconnecting...\n");
+		break;
+	    }
+	    if (packet_size == 0)
+	    {
+		printf("error: connection closed by host\n");
+		printf("Reconnecting...\n");
+		break;
+	    }
+	    printf("%s\n",buffer);
+	    prc_ret = process_packet();
+	    if (prc_ret == 1)
+	    {
+		printf("Exiting...\n");
+		break;
+	    }
+	    if (prc_ret == 2)
+	    {
+		printf("Reconnecting...\n");
+		break;
+	    }
 	}
     }
     return 0;
@@ -93,7 +95,7 @@ reconnect:
 // Returns 2 if there is a need to reconnect, 1 if an fatal error occurs and 0 otherwise.
 int process_packet()
 {
-    if (buffer[0] == 'N' && buffer[1] == 'A') // NAME PLEASE
+    if (memcmp(buffer, "NAME PLEASE", 11) == 0) // NAME PLEASE
     {
 	clientRegister(); // setName should be called within this
 	
@@ -114,10 +116,9 @@ int process_packet()
 	}
 	return 0;
     }
-    if (buffer[0] == 'N' && buffer[1] == 'E') // NEWGAME
+    if (memcmp(buffer, "NEWGAME", 7) == 0) // NEWGAME
     {
 	sscanf(buffer, "%*s %d %d %d %s", &playernum, &boardsize, &playerid, tmp); // %*s because I'm cool like that
-
 	clientInit(playernum, boardsize, playerid);
 
 	strcpy(out_buffer, "READY ");
@@ -134,25 +135,25 @@ int process_packet()
 	}
 	return 0;
     }
-    if (buffer[0] == 'G') // GAMEOVER
+    if (memcmp(buffer, "GAMEOVER", 8) == 0) // GAMEOVER
     {
 	printf("%s\n", buffer);
 	return 0;
     }
-    if (buffer[0] == 'C') // CELL
+    if (memcmp(buffer, "CELL", 4) == 0) // CELL
     {
 	int x, y, type;
 	sscanf(buffer, "%*s %d %d %d", &x, &y, &type);
 	terrain[x][y] = type;
 	return 0;
     }
-    if (buffer[0] == 'M') // MINERALS
+    if (memcmp(buffer, "MINERALS", 8) == 0) // MINERALS
     {
 	int pid, count;
 	sscanf(buffer, "%*s %d %d", &pid, &count);
 	minerals[pid] = count;
     }
-    if (buffer[0] == 'L') // LOCATION
+    if (memcmp(buffer, "LOCATION", 8) == 0) // LOCATION
     {
 	int pid, id, x, y, level;
 	sscanf(buffer, "%*s %d %d %d %d %d", &pid, &id, &x, &y, &level);
@@ -164,7 +165,7 @@ int process_packet()
 	student_count[pid]++;
 	total_students++;
     }
-    if (buffer[0] == 'Y') // YOURMOVE
+    if (memcmp(buffer, "YOURMOVE", 8) == 0) // YOURMOVE
     {
 	int x, y, i;
 	// Terrain info
