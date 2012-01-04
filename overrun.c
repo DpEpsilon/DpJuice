@@ -74,12 +74,12 @@ int main(int argc, char * argv[])
 		fprintf(stderr, "Reconnecting...\n");
 		break;
 	    }
-	    fprintf(stderr, "%s\n",buffer);
+	    fprintf(stderr, "%s\n", buffer);
 	    prc_ret = process_packet();
 	    if (prc_ret == 1)
 	    {
 		fprintf(stderr, "Exiting...\n");
-		break;
+		return 1;
 	    }
 	    if (prc_ret == 2)
 	    {
@@ -195,7 +195,7 @@ int process_packet()
 	clientDoTurn();
 
 	// TODO: Send back build information (since we only build once)
-	// But we should be fine with sending it within build for now
+	// But we should be fine with sending it within build() for now
 	
 	// Reset student count
 	memset(student_count, 0, sizeof(int)*MAX_PLAYERS+2);
