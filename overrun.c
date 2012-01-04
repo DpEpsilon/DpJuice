@@ -64,26 +64,26 @@ int main(int argc, char * argv[])
 	    packet_size = recv(soc, (void *)buffer, BUFFER_SIZE, 0);
 	    if (packet_size == -1)
 	    {
-		printf("error: problem in receiving packet\n");
-		printf("Reconnecting...\n");
+		fprintf(stderr, "error: problem in receiving packet\n");
+		fprintf(stderr, "Reconnecting...\n");
 		break;
 	    }
 	    if (packet_size == 0)
 	    {
-		printf("error: connection closed by host\n");
-		printf("Reconnecting...\n");
+		fprintf(stderr, "error: connection closed by host\n");
+		fprintf(stderr, "Reconnecting...\n");
 		break;
 	    }
-	    printf("%s\n",buffer);
+	    fprintf(stderr, "%s\n",buffer);
 	    prc_ret = process_packet();
 	    if (prc_ret == 1)
 	    {
-		printf("Exiting...\n");
+		fprintf(stderr, "Exiting...\n");
 		break;
 	    }
 	    if (prc_ret == 2)
 	    {
-		printf("Reconnecting...\n");
+		fprintf(stderr, "Reconnecting...\n");
 		break;
 	    }
 	}
@@ -101,17 +101,17 @@ int process_packet()
 	
 	if (!name_set)
 	{
-	    printf("fatal: bot failed to set name\n");
+	    fprintf(stderr, "fatal: bot failed to set name\n");
 	    return 1;
 	}
 	
 	strcat(out_buffer, " -1 -1 -1\n");
 
-	printf("out_buffer: %s", out_buffer);
+	fprintf(stderr, "out_buffer: %s", out_buffer);
 	
 	if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
 	{
-	    printf("error: could not send data\n");
+	    fprintf(stderr, "error: could not send data\n");
 	    return 2;
 	}
 	return 0;
@@ -126,18 +126,18 @@ int process_packet()
 	strcat(out_buffer, "\n");
 
 
-	printf("%s\n", out_buffer);
+	fprintf(stderr, "%s\n", out_buffer);
 	
 	if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
 	{
-	    printf("error: could not send data\n");
+	    fprintf(stderr, "error: could not send data\n");
 	    return 2;
 	}
 	return 0;
     }
     if (memcmp(buffer, "GAMEOVER", 8) == 0) // GAMEOVER
     {
-	printf("%s\n", buffer);
+	fprintf(stderr, "%s\n", buffer);
 	return 0;
     }
     if (memcmp(buffer, "CELL", 4) == 0) // CELL
@@ -216,7 +216,7 @@ void setName(const char* name)
     }
     else
     {
-	printf("WARNING: client called setName() more than once\n");
+	fprintf(stderr, "WARNING: client called setName() more than once\n");
     }
 }
 
@@ -230,7 +230,7 @@ void move(int uid, int move)
 
     if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
     {
-	printf("error: could not send data\n");
+	fprintf(stderr, "error: could not send data\n");
     }
 }
 
@@ -242,7 +242,7 @@ void build(int cost)
 
     if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
     {
-	printf("error: could not send data\n");
+	fprintf(stderr, "error: could not send data\n");
     }
 }
 
@@ -267,7 +267,7 @@ int connect_self()
 
     if (soc == -1)
     {
-	printf("fatal: socket fail\n");
+	fprintf(stderr, "fatal: socket fail\n");
 	return 1;
     }
 
@@ -276,17 +276,17 @@ int connect_self()
     sockAddr.sin_family = AF_INET;
     sockAddr.sin_port = htons(12317);
 
-    printf("%s\n", ip_address);
+    fprintf(stderr, "%s\n", ip_address);
     Res = inet_pton(AF_INET, ip_address, &sockAddr.sin_addr);
     if (0 > Res)
     {
-	printf("fatal: not a valid ip address family\n");
+	fprintf(stderr, "fatal: not a valid ip address family\n");
 	close(soc);
 	return 1;
     }
     else if (0 == Res)
     {
-	printf("fatal: not a valid ip address\n");
+	fprintf(stderr, "fatal: not a valid ip address\n");
 	close(soc);
 	return 1;
     }
@@ -297,7 +297,7 @@ int connect_self()
 	{
 	    break;
 	}
-	printf("error: connect failed\n");
+	fprintf(stderr, "error: connect failed\n");
 
 	// UNIX SLEEP FUNCTION: GRRRR
 	sleep(2);
@@ -311,7 +311,7 @@ int cmd_line_args(int argc, char * argv[])
     int i;
     for (i = 1; i < argc; i++)
     {
-	printf("%s\n", argv[i]);
+	fprintf(stderr, "%s\n", argv[i]);
 	if (argv[i][0] == '-')
 	{
 	    if (argv[i][1] == '-')
@@ -331,7 +331,7 @@ int cmd_line_args(int argc, char * argv[])
 	}
 	else if (ip_address[0] == '\0')
 	{
-	    printf("%s\n", argv[i]);
+	    fprintf(stderr, "%s\n", argv[i]);
 	    strncpy(ip_address, argv[i], 19);
 	}
     }
