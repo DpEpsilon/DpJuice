@@ -101,4 +101,3 @@ void clientStudentLocation(int pid, int id, int x, int y, int level) {
    allUnits[numUnits].y = y;
    numUnits++;
 }
-

@@ -13,7 +13,8 @@
 
 #define FALSE 0
 #define TRUE  1
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 6000
+#define COMMAND_SIZE 1024
 #define TMP_SIZE 64
 
 int terrain[MAX_SIZE+2][MAX_SIZE+2];
@@ -30,11 +31,16 @@ int student_count[MAX_PLAYERS+2];
 
 int playernum, boardsize, playerid;
 
-char buffer[BUFFER_SIZE];
-char out_buffer[BUFFER_SIZE];
+char in_buffer[BUFFER_SIZE+10];
+char out_buffer[BUFFER_SIZE+10];
 char tmp[TMP_SIZE];
 
+int command_upto = 0;
+char command_buffer[COMMAND_SIZE];
+
 int name_set = FALSE;
+
+int has_built = FALSE;
 
 ssize_t packet_size;
 
@@ -45,7 +51,7 @@ int soc;
 
 int cmd_line_args(int args, char * argv[]);
 int connect_self();
-int process_packet();
+int process_packet(char *buffer);
 
 int main(int argc, char * argv[])
 {
@@ -60,8 +66,8 @@ int main(int argc, char * argv[])
 		for (;;) // Packet processing loop
 		{
 			int prc_ret;
-			memset((void *)buffer, 0, sizeof(char)*BUFFER_SIZE);
-			packet_size = recv(soc, (void *)buffer, BUFFER_SIZE, 0);
+			memset(in_buffer, 0, sizeof(char)*BUFFER_SIZE);
+			packet_size = recv(soc, in_buffer, BUFFER_SIZE, 0);
 			if (packet_size == -1)
 			{
 				fprintf(stderr, "error: problem in receiving packet\n");
@@ -74,8 +80,17 @@ int main(int argc, char * argv[])
 				fprintf(stderr, "Reconnecting...\n");
 				break;
 			}
-			fprintf(stderr, "%s\n", buffer);
-			prc_ret = process_packet();
+            int buf_upto = 0;
+
+            while (in_buffer[buf_upto] != '\0') {
+                command_buffer[command_upto++] = in_buffer[buf_upto];
+                if (in_buffer[buf_upto] == '\n') {
+                    command_buffer[command_upto+1] = '\0';
+                    prc_ret = process_packet(command_buffer);
+                    command_upto = 0;
+                }
+                buf_upto++;
+            }
 			if (prc_ret == 1)
 			{
 				fprintf(stderr, "Exiting...\n");
@@ -94,7 +109,7 @@ int main(int argc, char * argv[])
 
 // Returns 2 if there is a need to reconnect,
 // 1 if an fatal error occurs and 0 otherwise.
-int process_packet()
+int process_packet(char *buffer)
 {
     if (memcmp(buffer, "NAME PLEASE", 11) == 0) // NAME PLEASE
     {
@@ -108,46 +123,33 @@ int process_packet()
 	
 		strcat(out_buffer, " -1 -1 -1\n");
 
-		fprintf(stderr, "out_buffer: %s", out_buffer);
-	
 		if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
 		{
 			fprintf(stderr, "error: could not send data\n");
 			return 2;
 		}
-		return 0;
     } else if (memcmp(buffer, "NEWGAME", 7) == 0) {
         // %*s because I'm cool like that
 		sscanf(buffer, "%*s %d %d %d %s",
                &playernum, &boardsize, &playerid, tmp);
-        
+
 		clientInit(playernum, boardsize, playerid);
 
 		strcpy(out_buffer, "READY ");
 		strncat(out_buffer, tmp, BUFFER_SIZE/4);
 		strcat(out_buffer, "\n");
-        
-        
-		fprintf(stderr, "%s\n", out_buffer);
 	
 		if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
 		{
 			fprintf(stderr, "error: could not send data\n");
 			return 2;
 		}
-		fprintf(stderr, "pretty sure that worked...\n");
-		return 0;
-        
     } else if (memcmp(buffer, "GAMEOVER", 8) == 0) {
-		fprintf(stderr, "%s\n", buffer);
-		return 0;
-        
+        fprintf(stderr, buffer);
     } else if (memcmp(buffer, "CELL", 4) == 0) {
 		int x, y, type;
 		sscanf(buffer, "%*s %d %d %d", &x, &y, &type);
 		terrain[x][y] = type;
-		return 0;
-        
     } else if (memcmp(buffer, "MINERALS", 8) == 0) {
 		int pid, count;
 		sscanf(buffer, "%*s %d %d", &pid, &count);
@@ -165,6 +167,7 @@ int process_packet()
 		total_students++;
     } else if (memcmp(buffer, "YOURMOVE", 8) == 0) {
 		int x, y, i;
+
 		// Terrain info
 		for (x = 0; x < boardsize; x++)
 		{
@@ -175,11 +178,10 @@ int process_packet()
 		}
 
 		// Juice info
-		for (i = 1; i < playernum; i++) // Yes, pid starts from 1
+		for (i = 1; i <= playernum; i++) // Yes, pid starts from 1
 		{
 			clientJuiceInfo(i, minerals[i]);
 		}
-
 
 		for (i = total_students-1; i >= 0; i--)
 		{
@@ -187,9 +189,14 @@ int process_packet()
 								  students[i].x, students[i].y,
 								  students[i].level);
 		}
-	
+
+        has_built = FALSE;
 		// This is the dangerous bit: 
 		clientDoTurn();
+
+        if (!has_built) {
+            build(0);
+        }
 
 		// TODO: Send back build information (since we only build once)
 		// But we should be fine with sending it within build() for now
@@ -197,6 +204,8 @@ int process_packet()
 		// Reset student count
 		memset(student_count, 0, sizeof(int)*MAX_PLAYERS+2);
 		total_students = 0;
+    } else {
+        fprintf(stderr, "WARNING: unknown header:\n");
     }
     return 0;
 }
@@ -222,9 +231,9 @@ void setName(const char* name)
 void move(int uid, int move)
 {
     strcpy(out_buffer, "MOVE ");
-    snprintf(tmp, BUFFER_SIZE/4, "%d", uid);
+    snprintf(tmp, BUFFER_SIZE/4, "%d ", uid);
     strncat(out_buffer, tmp, BUFFER_SIZE/4);
-    snprintf(tmp, BUFFER_SIZE/4, "%d", move);
+    snprintf(tmp, BUFFER_SIZE/4, "%d\n", move);
     strncat(out_buffer, tmp, BUFFER_SIZE/4);
 
     if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
@@ -235,8 +244,13 @@ void move(int uid, int move)
 
 void build(int cost)
 {
+    if (has_built) {
+        fprintf(stderr, "WARNING: client called build() more than once "
+                "in this turn\n");
+    }
+    has_built = TRUE;
     strcpy(out_buffer, "BUILD ");
-    snprintf(tmp, BUFFER_SIZE/4, "%d", cost);
+    snprintf(tmp, BUFFER_SIZE/4, "%d\n", cost);
     strncat(out_buffer, tmp, BUFFER_SIZE/4);
 
     if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
