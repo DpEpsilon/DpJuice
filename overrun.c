@@ -54,152 +54,149 @@ int main(int argc, char * argv[])
     
     for (;;) // Reconnect loop
     {
-	name_set = FALSE;
-	if (connect_self() == 1) return 1;
-	
-	for (;;) // Packet processing loop
-	{
-	    int prc_ret;
-	    memset((void *)buffer, 0, sizeof(char)*BUFFER_SIZE);
-	    packet_size = recv(soc, (void *)buffer, BUFFER_SIZE, 0);
-	    if (packet_size == -1)
-	    {
-		fprintf(stderr, "error: problem in receiving packet\n");
-		fprintf(stderr, "Reconnecting...\n");
-		break;
-	    }
-	    if (packet_size == 0)
-	    {
-		fprintf(stderr, "error: connection closed by host\n");
-		fprintf(stderr, "Reconnecting...\n");
-		break;
-	    }
-	    fprintf(stderr, "%s\n", buffer);
-	    prc_ret = process_packet();
-	    if (prc_ret == 1)
-	    {
-		fprintf(stderr, "Exiting...\n");
-		return 1;
-	    }
-	    if (prc_ret == 2)
-	    {
-		fprintf(stderr, "Reconnecting...\n");
-		break;
-	    }
-	}
+		name_set = FALSE;
+		if (connect_self() == 1) return 1;
+        
+		for (;;) // Packet processing loop
+		{
+			int prc_ret;
+			memset((void *)buffer, 0, sizeof(char)*BUFFER_SIZE);
+			packet_size = recv(soc, (void *)buffer, BUFFER_SIZE, 0);
+			if (packet_size == -1)
+			{
+				fprintf(stderr, "error: problem in receiving packet\n");
+				fprintf(stderr, "Reconnecting...\n");
+				break;
+			}
+			if (packet_size == 0)
+			{
+				fprintf(stderr, "error: connection closed by host\n");
+				fprintf(stderr, "Reconnecting...\n");
+				break;
+			}
+			fprintf(stderr, "%s\n", buffer);
+			prc_ret = process_packet();
+			if (prc_ret == 1)
+			{
+				fprintf(stderr, "Exiting...\n");
+				return 1;
+			}
+			if (prc_ret == 2)
+			{
+				fprintf(stderr, "Reconnecting...\n");
+				break;
+			}
+		}
     }
     return 0;
 }
 
 
-// Returns 2 if there is a need to reconnect, 1 if an fatal error occurs and 0 otherwise.
+// Returns 2 if there is a need to reconnect,
+// 1 if an fatal error occurs and 0 otherwise.
 int process_packet()
 {
     if (memcmp(buffer, "NAME PLEASE", 11) == 0) // NAME PLEASE
     {
-	clientRegister(); // setName should be called within this
+		clientRegister(); // setName should be called within this
 	
-	if (!name_set)
-	{
-	    fprintf(stderr, "fatal: bot failed to set name\n");
-	    return 1;
-	}
+		if (!name_set)
+		{
+			fprintf(stderr, "fatal: bot failed to set name\n");
+			return 1;
+		}
 	
-	strcat(out_buffer, " -1 -1 -1\n");
+		strcat(out_buffer, " -1 -1 -1\n");
 
-	fprintf(stderr, "out_buffer: %s", out_buffer);
+		fprintf(stderr, "out_buffer: %s", out_buffer);
 	
-	if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
-	{
-	    fprintf(stderr, "error: could not send data\n");
-	    return 2;
-	}
-	return 0;
-    }
-    if (memcmp(buffer, "NEWGAME", 7) == 0) // NEWGAME
-    {
-	sscanf(buffer, "%*s %d %d %d %s", &playernum, &boardsize, &playerid, tmp); // %*s because I'm cool like that
-	clientInit(playernum, boardsize, playerid);
+		if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
+		{
+			fprintf(stderr, "error: could not send data\n");
+			return 2;
+		}
+		return 0;
+    } else if (memcmp(buffer, "NEWGAME", 7) == 0) {
+        // %*s because I'm cool like that
+		sscanf(buffer, "%*s %d %d %d %s",
+               &playernum, &boardsize, &playerid, tmp);
+        
+		clientInit(playernum, boardsize, playerid);
 
-	strcpy(out_buffer, "READY ");
-	strncat(out_buffer, tmp, BUFFER_SIZE/4);
-	strcat(out_buffer, "\n");
-
-
-	fprintf(stderr, "%s\n", out_buffer);
+		strcpy(out_buffer, "READY ");
+		strncat(out_buffer, tmp, BUFFER_SIZE/4);
+		strcat(out_buffer, "\n");
+        
+        
+		fprintf(stderr, "%s\n", out_buffer);
 	
-	if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
-	{
-	    fprintf(stderr, "error: could not send data\n");
-	    return 2;
-	}
-	return 0;
-    }
-    if (memcmp(buffer, "GAMEOVER", 8) == 0) // GAMEOVER
-    {
-	fprintf(stderr, "%s\n", buffer);
-	return 0;
-    }
-    if (memcmp(buffer, "CELL", 4) == 0) // CELL
-    {
-	int x, y, type;
-	sscanf(buffer, "%*s %d %d %d", &x, &y, &type);
-	terrain[x][y] = type;
-	return 0;
-    }
-    if (memcmp(buffer, "MINERALS", 8) == 0) // MINERALS
-    {
-	int pid, count;
-	sscanf(buffer, "%*s %d %d", &pid, &count);
-	minerals[pid] = count;
-    }
-    if (memcmp(buffer, "LOCATION", 8) == 0) // LOCATION
-    {
-	int pid, id, x, y, level;
-	sscanf(buffer, "%*s %d %d %d %d %d", &pid, &id, &x, &y, &level);
-	students[total_students].pid = pid;
-	students[total_students].id = id;
-	students[total_students].x = x;
-	students[total_students].y = y;
-	students[total_students].level = level;
-	student_count[pid]++;
-	total_students++;
-    }
-    if (memcmp(buffer, "YOURMOVE", 8) == 0) // YOURMOVE
-    {
-	int x, y, i;
-	// Terrain info
-	for (x = 0; x < boardsize; x++)
-	{
-	    for (y = 0; y < boardsize; y++)
-	    {
-		clientTerrainInfo(x, y, terrain[x][y]);
-	    }
-	}
+		if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
+		{
+			fprintf(stderr, "error: could not send data\n");
+			return 2;
+		}
+		fprintf(stderr, "pretty sure that worked...\n");
+		return 0;
+        
+    } else if (memcmp(buffer, "GAMEOVER", 8) == 0) {
+		fprintf(stderr, "%s\n", buffer);
+		return 0;
+        
+    } else if (memcmp(buffer, "CELL", 4) == 0) {
+		int x, y, type;
+		sscanf(buffer, "%*s %d %d %d", &x, &y, &type);
+		terrain[x][y] = type;
+		return 0;
+        
+    } else if (memcmp(buffer, "MINERALS", 8) == 0) {
+		int pid, count;
+		sscanf(buffer, "%*s %d %d", &pid, &count);
+		minerals[pid] = count;
+        
+    } else if (memcmp(buffer, "LOCATION", 8) == 0) {
+		int pid, id, x, y, level;
+		sscanf(buffer, "%*s %d %d %d %d %d", &pid, &id, &x, &y, &level);
+		students[total_students].pid = pid;
+		students[total_students].id = id;
+		students[total_students].x = x;
+		students[total_students].y = y;
+		students[total_students].level = level;
+		student_count[pid]++;
+		total_students++;
+    } else if (memcmp(buffer, "YOURMOVE", 8) == 0) {
+		int x, y, i;
+		// Terrain info
+		for (x = 0; x < boardsize; x++)
+		{
+			for (y = 0; y < boardsize; y++)
+			{
+				clientTerrainInfo(x, y, terrain[x][y]);
+			}
+		}
 
-	// Juice info
-	for (i = 1; i < playernum; i++) // Yes, pid starts from 1
-	{
-	    clientJuiceInfo(i, minerals[i]);
-	}
+		// Juice info
+		for (i = 1; i < playernum; i++) // Yes, pid starts from 1
+		{
+			clientJuiceInfo(i, minerals[i]);
+		}
 
 
-	for (i = total_students-1; i >= 0; i--)
-	{
-	    clientStudentLocation(students[i].pid, students[i].id,
-				  students[i].x, students[i].y,
-				  students[i].level);
-	}
+		for (i = total_students-1; i >= 0; i--)
+		{
+			clientStudentLocation(students[i].pid, students[i].id,
+								  students[i].x, students[i].y,
+								  students[i].level);
+		}
 	
-	// This is the dangerous bit: 
-	clientDoTurn();
+		// This is the dangerous bit: 
+		clientDoTurn();
 
-	// TODO: Send back build information (since we only build once)
-	// But we should be fine with sending it within build() for now
+		// TODO: Send back build information (since we only build once)
+		// But we should be fine with sending it within build() for now
 	
-	// Reset student count
-	memset(student_count, 0, sizeof(int)*MAX_PLAYERS+2);
-	total_students = 0;
+		// Reset student count
+		memset(student_count, 0, sizeof(int)*MAX_PLAYERS+2);
+		total_students = 0;
     }
     return 0;
 }
@@ -209,14 +206,16 @@ void setName(const char* name)
 {
     if (!name_set)
     {
-	strcpy(out_buffer, "NAME ");
-	
-	strncat(out_buffer, name, BUFFER_SIZE/4); // Might as well set a rough limit, since the server will have a further limit
-	name_set = TRUE;
+		strcpy(out_buffer, "NAME ");
+
+        // Might as well set a rough limit,
+        // since the server will have a further limit
+		strncat(out_buffer, name, BUFFER_SIZE/4);
+		name_set = TRUE;
     }
     else
     {
-	fprintf(stderr, "WARNING: client called setName() more than once\n");
+		fprintf(stderr, "WARNING: client called setName() more than once\n");
     }
 }
 
@@ -228,9 +227,9 @@ void move(int uid, int move)
     snprintf(tmp, BUFFER_SIZE/4, "%d", move);
     strncat(out_buffer, tmp, BUFFER_SIZE/4);
 
-    if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
+    if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
     {
-	fprintf(stderr, "error: could not send data\n");
+		fprintf(stderr, "error: could not send data\n");
     }
 }
 
@@ -240,9 +239,9 @@ void build(int cost)
     snprintf(tmp, BUFFER_SIZE/4, "%d", cost);
     strncat(out_buffer, tmp, BUFFER_SIZE/4);
 
-    if (send(soc, out_buffer, BUFFER_SIZE, 0) == -1)
+    if (send(soc, out_buffer, strlen(out_buffer), 0) == -1)
     {
-	fprintf(stderr, "error: could not send data\n");
+		fprintf(stderr, "error: could not send data\n");
     }
 }
 
@@ -267,8 +266,8 @@ int connect_self()
 
     if (soc == -1)
     {
-	fprintf(stderr, "fatal: socket fail\n");
-	return 1;
+		fprintf(stderr, "fatal: socket fail\n");
+		return 1;
     }
 
     memset(&sockAddr, 0, sizeof(sockAddr));
@@ -280,27 +279,27 @@ int connect_self()
     Res = inet_pton(AF_INET, ip_address, &sockAddr.sin_addr);
     if (0 > Res)
     {
-	fprintf(stderr, "fatal: not a valid ip address family\n");
-	close(soc);
-	return 1;
+		fprintf(stderr, "fatal: not a valid ip address family\n");
+		close(soc);
+		return 1;
     }
     else if (0 == Res)
     {
-	fprintf(stderr, "fatal: not a valid ip address\n");
-	close(soc);
-	return 1;
+		fprintf(stderr, "fatal: not a valid ip address\n");
+		close(soc);
+		return 1;
     }
 
     for (;;)
     {
-	if (-1 != connect(soc, (struct sockaddr *)&sockAddr, sizeof(sockAddr)))
-	{
-	    break;
-	}
-	fprintf(stderr, "error: connect failed\n");
+		if (-1 != connect(soc, (struct sockaddr *)&sockAddr, sizeof(sockAddr)))
+		{
+			break;
+		}
+		fprintf(stderr, "error: connect failed\n");
 
-	// UNIX SLEEP FUNCTION: GRRRR
-	sleep(2);
+		// UNIX SLEEP FUNCTION: GRRRR
+		sleep(2);
     }
     
     return 0;
@@ -311,29 +310,29 @@ int cmd_line_args(int argc, char * argv[])
     int i;
     for (i = 1; i < argc; i++)
     {
-	fprintf(stderr, "%s\n", argv[i]);
-	if (argv[i][0] == '-')
-	{
-	    if (argv[i][1] == '-')
-	    {
-		if (strncmp("--vis-output", argv[i], 20) == 0)
+		fprintf(stderr, "%s\n", argv[i]);
+		if (argv[i][0] == '-')
 		{
-		    vis_output = TRUE;
+			if (argv[i][1] == '-')
+			{
+				if (strncmp("--vis-output", argv[i], 20) == 0)
+				{
+					vis_output = TRUE;
+				}
+			}
+			else
+			{
+				if (strncmp("-vo", argv[i], 20) == 0)
+				{
+					vis_output = TRUE;
+				}
+			}
 		}
-	    }
-	    else
-	    {
-		if (strncmp("-vo", argv[i], 20) == 0)
+		else if (ip_address[0] == '\0')
 		{
-		    vis_output = TRUE;
+			fprintf(stderr, "%s\n", argv[i]);
+			strncpy(ip_address, argv[i], 19);
 		}
-	    }
-	}
-	else if (ip_address[0] == '\0')
-	{
-	    fprintf(stderr, "%s\n", argv[i]);
-	    strncpy(ip_address, argv[i], 19);
-	}
     }
     return 0;
 }
