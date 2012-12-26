@@ -17,41 +17,43 @@
 #define COMMAND_SIZE 1024
 #define TMP_SIZE 64
 
-int terrain[MAX_SIZE+2][MAX_SIZE+2];
+static int terrain[MAX_SIZE+2][MAX_SIZE+2];
 
-int minerals[MAX_PLAYERS+2];
+static int minerals[MAX_PLAYERS+2];
 
-struct student
+static struct student
 {
     int pid, id, x, y, level;
 } students[MAX_SIZE*MAX_SIZE+2];
-int total_students;
+static int total_students;
 
-int student_count[MAX_PLAYERS+2];
+static int student_count[MAX_PLAYERS+2];
 
-int playernum, boardsize, playerid;
+static int playernum, boardsize, playerid;
 
-char in_buffer[BUFFER_SIZE+10];
-char out_buffer[BUFFER_SIZE+10];
-char tmp[TMP_SIZE];
+static char in_buffer[BUFFER_SIZE+10];
+static char out_buffer[BUFFER_SIZE+10];
+static char tmp[TMP_SIZE];
 
-int command_upto = 0;
-char command_buffer[COMMAND_SIZE];
+static int command_upto = 0;
+static char command_buffer[COMMAND_SIZE];
 
-int name_set = FALSE;
+static int name_set = FALSE;
 
-int has_built = FALSE;
+static int has_built = FALSE;
 
-ssize_t packet_size;
+static ssize_t packet_size;
 
-char ip_address[20];
-int vis_output = FALSE;
+static char ip_address[20];
+static int vis_output = FALSE;
 
-int soc;
+static int soc;
 
-int cmd_line_args(int args, char * argv[]);
-int connect_self();
-int process_packet(char *buffer);
+static int cmd_line_args(int args, char * argv[]);
+static int connect_self();
+static int process_packet(char *buffer);
+
+static void clear_terrain();
 
 int main(int argc, char * argv[])
 {
@@ -85,7 +87,7 @@ int main(int argc, char * argv[])
             while (in_buffer[buf_upto] != '\0') {
                 command_buffer[command_upto++] = in_buffer[buf_upto];
                 if (in_buffer[buf_upto] == '\n') {
-                    command_buffer[command_upto+1] = '\0';
+                    command_buffer[command_upto] = '\0';
                     prc_ret = process_packet(command_buffer);
                     command_upto = 0;
                 }
@@ -109,8 +111,9 @@ int main(int argc, char * argv[])
 
 // Returns 2 if there is a need to reconnect,
 // 1 if an fatal error occurs and 0 otherwise.
-int process_packet(char *buffer)
+static int process_packet(char *buffer)
 {
+    fprintf(stderr, "%s", buffer);
     if (memcmp(buffer, "NAME PLEASE", 11) == 0) // NAME PLEASE
     {
 		clientRegister(); // setName should be called within this
@@ -176,7 +179,7 @@ int process_packet(char *buffer)
 				clientTerrainInfo(x, y, terrain[x][y]);
 			}
 		}
-
+        
 		// Juice info
 		for (i = 1; i <= playernum; i++) // Yes, pid starts from 1
 		{
@@ -191,13 +194,14 @@ int process_packet(char *buffer)
 		}
 
         has_built = FALSE;
+        
 		// This is the dangerous bit: 
 		clientDoTurn();
-
+        
         if (!has_built) {
             build(0);
         }
-
+        
 		// TODO: Send back build information (since we only build once)
 		// But we should be fine with sending it within build() for now
 	
@@ -271,7 +275,7 @@ int getLevel(int cost)
 }
 
 
-int connect_self()
+static int connect_self()
 {
     struct sockaddr_in sockAddr;
     int Res; // ip in int form
@@ -319,7 +323,16 @@ int connect_self()
     return 0;
 }
 
-int cmd_line_args(int argc, char * argv[])
+static void clear_terrain() {
+    int i, j;
+    for (i = 0; i < MAX_SIZE; i++) {
+        for (j = 0; j < MAX_SIZE; j++) {
+            terrain[i][j] = 0;
+        }
+    }
+}
+
+static int cmd_line_args(int argc, char * argv[])
 {
     int i;
     for (i = 1; i < argc; i++)
