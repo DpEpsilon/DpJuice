@@ -111,7 +111,6 @@ int main(int argc, char * argv[])
 // 1 if an fatal error occurs and 0 otherwise.
 static int process_packet(char *buffer)
 {
-    fprintf(stderr, "%s", buffer);
     if (memcmp(buffer, "NAME PLEASE", 11) == 0) // NAME PLEASE
     {
 		clientRegister(); // setName should be called within this
