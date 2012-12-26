@@ -53,8 +53,6 @@ static int cmd_line_args(int args, char * argv[]);
 static int connect_self();
 static int process_packet(char *buffer);
 
-static void clear_terrain();
-
 int main(int argc, char * argv[])
 {
     strcpy(ip_address, "127.0.0.1");
@@ -321,15 +319,6 @@ static int connect_self()
     }
     
     return 0;
-}
-
-static void clear_terrain() {
-    int i, j;
-    for (i = 0; i < MAX_SIZE; i++) {
-        for (j = 0; j < MAX_SIZE; j++) {
-            terrain[i][j] = 0;
-        }
-    }
 }
 
 static int cmd_line_args(int argc, char * argv[])
