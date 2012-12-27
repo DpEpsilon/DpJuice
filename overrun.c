@@ -55,12 +55,14 @@ static int process_packet(char *buffer);
 
 int main(int argc, char * argv[])
 {
+    fprintf(stderr, "DpJuice Overrun PHAIS library BETA\n\n");
     strcpy(ip_address, "127.0.0.1");
     if (cmd_line_args(argc, argv) == 1) return 1;
-    
+
     for (;;) // Reconnect loop
     {
 		name_set = FALSE;
+
 		if (connect_self() == 1) return 1;
         
 		for (;;) // Packet processing loop
@@ -290,17 +292,17 @@ static int connect_self()
     sockAddr.sin_family = AF_INET;
     sockAddr.sin_port = htons(12317);
 
-    fprintf(stderr, "%s\n", ip_address);
+    fprintf(stderr, "Connecting to \"%s\"... ", ip_address);
     Res = inet_pton(AF_INET, ip_address, &sockAddr.sin_addr);
     if (0 > Res)
     {
-		fprintf(stderr, "fatal: not a valid ip address family\n");
+		fprintf(stderr, "\nfatal: not a valid ip address family\n");
 		close(soc);
 		return 1;
     }
     else if (0 == Res)
     {
-		fprintf(stderr, "fatal: not a valid ip address\n");
+		fprintf(stderr, "\nfatal: not a valid ip address\n");
 		close(soc);
 		return 1;
     }
@@ -311,11 +313,12 @@ static int connect_self()
 		{
 			break;
 		}
-		fprintf(stderr, "error: connect failed\n");
-
+		fprintf(stderr, "\nerror: connect failed\n");
 		// UNIX SLEEP FUNCTION: GRRRR
 		sleep(2);
+        fprintf(stderr, "Retrying... ");
     }
+    fprintf(stderr, "Connected.\n");
     
     return 0;
 }
